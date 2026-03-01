@@ -72,6 +72,14 @@ export const BaseLayout: React.FC = () => {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <Link to="/profile">
+                <DropdownMenuItem className="cursor-pointer">
+                  <span className="flex items-center">
+                    <ShieldCheck className="mr-2 h-4 w-4" /> {/* Or User icon if available, but ShieldCheck is already imported */}
+                    <span>Meu Perfil</span>
+                  </span>
+                </DropdownMenuItem>
+              </Link>
               <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sair</span>

@@ -11,6 +11,7 @@ interface AuthState {
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   signOut: () => Promise<void>;
+  updateProfile: (data: Partial<User>) => Promise<void>;
   validateSubscription: (user: User) => Promise<User>;
 }
 
@@ -34,6 +35,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     await firebaseSignOut(auth);
     set({ user: null });
+  },
+
+  updateProfile: async (data: Partial<User>) => {
+    const { user } = useAuthStore.getState();
+    if (!user) return;
+    const userRef = doc(db, 'users', user.id);
+    await updateDoc(userRef, data);
+    set((state) => ({ 
+      user: state.user ? { ...state.user, ...data } : null 
+    }));
   }
 }));
 
@@ -78,7 +89,8 @@ onAuthStateChanged(auth, async (firebaseUser) => {
             cpfCnpj: data.cpfCnpj,
             phone: data.phone,
             repasseLimpaNome: data.repasseLimpaNome,
-            plano: data.plano
+            plano: data.plano,
+            photoURL: data.photoURL || firebaseUser.photoURL || undefined
           };
           
           // Se o usuário tem a claim de admin mas o Firestore diz que é user, sincroniza o banco
@@ -157,9 +169,10 @@ onAuthStateChanged(auth, async (firebaseUser) => {
               onboardingCompleted: updatedData.onboardingCompleted || false,
               cpfCnpj: updatedData.cpfCnpj,
               phone: updatedData.phone,
-              repasseLimpaNome: updatedData.repasseLimpaNome,
-              plano: updatedData.plano
-            };
+                repasseLimpaNome: updatedData.repasseLimpaNome,
+                plano: updatedData.plano,
+                photoURL: updatedData.photoURL || firebaseUser.photoURL || undefined
+              };
             store.setUser(userState);
           } catch (snapError) {
             console.error("Error in onSnapshot data parse:", snapError);

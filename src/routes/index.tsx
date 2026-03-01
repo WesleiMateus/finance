@@ -10,6 +10,8 @@ import { Dashboard } from '../features/dashboard/Dashboard';
 import { AdminPanel } from '../features/admin/AdminPanel';
 import { Onboarding } from '../features/onboarding/Onboarding';
 import { TransactionsPage } from '../features/transactions/TransactionsPage';
+import { PlanningPage } from '../features/planning/PlanningPage';
+import { ProfilePage } from '../features/auth/ProfilePage';
 
 export const router = createBrowserRouter([
   {
@@ -45,7 +47,11 @@ export const router = createBrowserRouter([
           },
           {
             path: '/planning',
-            element: <div className="p-4">Planning module coming soon.</div>,
+            element: <PlanningPage />,
+          },
+          {
+            path: '/profile',
+            element: <ProfilePage />,
           }
         ]
       },

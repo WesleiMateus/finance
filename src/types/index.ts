@@ -15,6 +15,7 @@ export interface User {
   phone?: string;
   repasseLimpaNome?: number;
   plano?: 'iniciante' | 'basic' | 'pro' | 'black' | 'infinity';
+  photoURL?: string;
 }
 
 export interface Transaction {

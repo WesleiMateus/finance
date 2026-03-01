@@ -9,6 +9,9 @@ interface FinanceState {
   refreshCounter: number;
   setTransactions: (transactions: Transaction[]) => void;
   setGoals: (goals: Goal[]) => void;
+  addGoal: (goal: Goal) => void;
+  updateGoal: (goal: Goal) => void;
+  deleteGoal: (id: string) => void;
   addTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
   setLoading: (loading: boolean) => void;
@@ -30,6 +33,16 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   
   setGoals: (goals) => set({ goals }),
   
+  addGoal: (goal) => set((state) => ({ goals: [...state.goals, goal] })),
+  
+  updateGoal: (goal) => set((state) => ({
+    goals: state.goals.map((g) => (g.id === goal.id ? goal : g))
+  })),
+  
+  deleteGoal: (id) => set((state) => ({
+    goals: state.goals.filter((g) => g.id !== id)
+  })),
+
   addTransaction: (transaction) => {
     set((state) => ({ transactions: [...state.transactions, transaction] }));
     get().calculateBalance();
