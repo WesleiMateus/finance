@@ -3,42 +3,46 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper Functions
+    // --- Helper Functions ---
+    
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    function isUserDoc(userId) {
-      return request.auth.uid == userId;
-    }
-
     function isAdmin() {
-      // Assumes we define roles in user tokens, or we let them read from users once.
-      // Since rules are simple for now, we verify admin via reading the user's document.
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isAuthenticated() && 
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role.lower() == 'admin' ||
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role.lower() == 'owner'))
+          ||
+          request.auth.token.admin == true
+        );
     }
 
-    // users collection
+    // --- Collection Rules ---
+
+    // USERS: Admins/Owners have absolute access. Users can read/update their own profile.
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isUserDoc(userId) || isAdmin());
-      allow create: if isAuthenticated() && isUserDoc(userId);
-      allow update: if isAuthenticated() && (
-        isAdmin() || 
-        (isUserDoc(userId) && 
-         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'subscriptionExpiresAt']))
-      );
+      allow get: if request.auth.uid == userId || isAdmin();
+      allow list: if isAdmin();
+      allow create: if request.auth.uid == userId;
+      allow update: if isAdmin() || (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'subscriptionExpiresAt']));
+      allow delete: if isAdmin();
     }
 
-    // Financial Data: transactions collection
+    // TRANSACTIONS: Admins have full access. Users only their own.
     match /transactions/{transactionId} {
-      // Only the user who owns the transaction can access it. Admins excluded per instruction.
-      allow read, write: if isAuthenticated() && request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid;
+      allow get: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow list: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow write: if isAuthenticated() && (isAdmin() || request.resource.data.userId == request.auth.uid);
     }
 
-    // Financial Data: goals collection
+    // GOALS: Admins have full access. Users only their own.
     match /goals/{goalId} {
-      // Only the user who owns the goal can access it. Admins excluded per instruction.
-      allow read, write: if isAuthenticated() && request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid;
+      allow get: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow list: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow write: if isAuthenticated() && (isAdmin() || request.resource.data.userId == request.auth.uid);
     }
   }
 }

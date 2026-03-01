@@ -18,7 +18,7 @@ export const BaseLayout: React.FC = () => {
     { name: 'Planejamento', path: '/planning', icon: Target, exact: false },
   ];
 
-  if (user?.role === 'admin') {
+  if (user?.role === 'admin' || user?.role === 'owner') {
     navItems.push({ name: 'Administração', path: '/admin', icon: ShieldCheck, exact: false });
   }
 
@@ -48,7 +48,7 @@ export const BaseLayout: React.FC = () => {
             <DropdownMenuTrigger className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-full hover:bg-accent transition-colors outline-none cursor-pointer">
               <div className="flex flex-col text-right hidden sm:flex">
                 <span className="text-sm font-medium leading-none">{user?.name}</span>
-                <span className="text-xs text-foreground/60 mt-1 capitalize">{user?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
+                <span className="text-xs text-foreground/60 mt-1 capitalize">{user?.role === 'owner' ? 'Dono' : user?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
               </div>
               <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-sm font-medium">
                 {user?.name?.charAt(0).toUpperCase() || 'U'}

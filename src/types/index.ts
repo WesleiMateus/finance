@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'user';
+export type Role = 'owner' | 'admin' | 'user';
 export type AccountStatus = 'active' | 'pending' | 'blocked';
 export type TransactionType = 'income' | 'expense' | 'installment' | 'recurring';
 
@@ -11,6 +11,10 @@ export interface User {
   subscriptionExpiresAt: Date;
   createdAt: Date;
   onboardingCompleted?: boolean;
+  cpfCnpj?: string;
+  phone?: string;
+  repasseLimpaNome?: number;
+  plano?: 'iniciante' | 'basic' | 'pro' | 'black' | 'infinity';
 }
 
 export interface Transaction {

@@ -1,17 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import type { Transaction } from '../../types';
 import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { TransactionModal } from '../dashboard/TransactionModal';
 import { toast } from 'sonner';
-import { Trash2, Filter, ArrowUpCircle, ArrowDownCircle, Search } from 'lucide-react';
+import { 
+  Trash2, Filter, ArrowUpCircle, ArrowDownCircle, Search, 
+  Calendar, CreditCard, Tag, Landmark, Receipt, RefreshCw, Plus,
+  ChevronRight, Download
+} from 'lucide-react';
+import { useGsapReveal, useGsapStagger } from '../../hooks/useGsap';
 
 export const TransactionsPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -22,45 +27,34 @@ export const TransactionsPage: React.FC = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [monthFilter, setMonthFilter] = useState('all'); // Default to all months
+  const [monthFilter, setMonthFilter] = useState('all'); 
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
 
   const fetchTransactions = async () => {
-    if (!user) {
-      console.warn("TransactionsPage: No user found, skipping fetch");
-      return;
-    }
+    if (!user) return;
     try {
-      console.log("TransactionsPage: Fetching for user", user.id);
       setLoading(true);
       const q = query(collection(db, 'transactions'), where('userId', '==', user.id));
       const snap = await getDocs(q);
-      console.log("TransactionsPage: Snap size", snap.size);
       
       const fetched: Transaction[] = [];
       snap.forEach(d => {
         const data = d.data();
-        try {
-          fetched.push({
-            id: d.id,
-            userId: data.userId,
-            type: data.type,
-            amount: Number(data.amount),
-            category: data.category || 'Outros',
-            date: data.date?.toDate() || new Date(),
-            description: data.description || 'S/ Descrição',
-            createdAt: data.createdAt?.toDate() || new Date()
-          });
-        } catch (innerErr) {
-          console.error("TransactionsPage: Error parsing doc", d.id, innerErr);
-        }
+        fetched.push({
+          id: d.id,
+          userId: data.userId,
+          type: data.type,
+          amount: Number(data.amount),
+          category: data.category || 'Outros',
+          date: data.date?.toDate() || new Date(),
+          description: data.description || 'S/ Descrição',
+          createdAt: data.createdAt?.toDate() || new Date()
+        });
       });
       
       fetched.sort((a, b) => b.date.getTime() - a.date.getTime());
-      console.log("TransactionsPage: Total fetched items", fetched.length);
       setTransactions(fetched);
     } catch (err: any) {
-      console.error("TransactionsPage: Fetch error", err);
       toast.error('Erro ao carregar transações: ' + err.message);
     } finally {
       setLoading(false);
@@ -68,10 +62,7 @@ export const TransactionsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log("TransactionsPage: Mounted");
-    if (user) {
-      fetchTransactions();
-    }
+    if (user) fetchTransactions();
   }, [user]);
 
   const handleDelete = async (id: string) => {
@@ -85,151 +76,168 @@ export const TransactionsPage: React.FC = () => {
     }
   };
 
-  const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         t.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === 'all' || t.type === typeFilter;
-    const matchesMonth = monthFilter === 'all' || t.date.getMonth().toString() === monthFilter;
-    const matchesYear = yearFilter === 'all' || t.date.getFullYear().toString() === yearFilter;
-    
-    return matchesSearch && matchesType && matchesMonth && matchesYear;
-  });
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const search = searchTerm.toLowerCase();
+      const matchesSearch = t.description.toLowerCase().includes(search) || 
+                           t.category.toLowerCase().includes(search);
+      const matchesType = typeFilter === 'all' || t.type === typeFilter;
+      const matchesMonth = monthFilter === 'all' || t.date.getMonth().toString() === monthFilter;
+      const matchesYear = yearFilter === 'all' || t.date.getFullYear().toString() === yearFilter;
+      
+      return matchesSearch && matchesType && matchesMonth && matchesYear;
+    });
+  }, [transactions, searchTerm, typeFilter, monthFilter, yearFilter]);
 
-  const periodIncome = filteredTransactions
-    .filter(t => t.type === 'income' || t.type === 'recurring')
-    .reduce((acc, t) => acc + t.amount, 0);
+  const periodIncome = useMemo(() => 
+    filteredTransactions
+      .filter(t => t.type === 'income' || t.type === 'recurring')
+      .reduce((acc, t) => acc + t.amount, 0),
+    [filteredTransactions]
+  );
   
-  const periodExpense = filteredTransactions
-    .filter(t => t.type === 'expense' || t.type === 'installment')
-    .reduce((acc, t) => acc + t.amount, 0);
+  const periodExpense = useMemo(() => 
+    filteredTransactions
+      .filter(t => t.type === 'expense' || t.type === 'installment')
+      .reduce((acc, t) => acc + t.amount, 0),
+    [filteredTransactions]
+  );
 
   const months = [
     { value: 'all', label: 'Todos os Meses' },
-    { value: '0', label: 'Janeiro' },
-    { value: '1', label: 'Fevereiro' },
-    { value: '2', label: 'Março' },
-    { value: '3', label: 'Abril' },
-    { value: '4', label: 'Maio' },
-    { value: '5', label: 'Junho' },
-    { value: '6', label: 'Julho' },
-    { value: '7', label: 'Agosto' },
-    { value: '8', label: 'Setembro' },
-    { value: '9', label: 'Outubro' },
-    { value: '10', label: 'Novembro' },
-    { value: '11', label: 'Dezembro' }
+    { value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' },
+    { value: '2', label: 'Março' }, { value: '3', label: 'Abril' },
+    { value: '4', label: 'Maio' }, { value: '5', label: 'Junho' },
+    { value: '6', label: 'Julho' }, { value: '7', label: 'Agosto' },
+    { value: '8', label: 'Setembro' }, { value: '9', label: 'Outubro' },
+    { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
   ];
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - 2 + i).toString());
 
+  const headerRef = useGsapReveal(0);
+  const containerRef = useGsapStagger('.reveal-item', 0.1, 0.05);
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Transações</h1>
-          <p className="text-foreground/70">Gerencie seu histórico financeiro detalhadamente.</p>
+    <div ref={containerRef} className="space-y-10 pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 font-outfit">
+      {/* Header */}
+      <div ref={headerRef} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-2">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-extrabold tracking-tight text-gradient">Fluxo de Caixa</h1>
+          <p className="text-muted-foreground font-medium">Controle granular de todas as movimentações financeiras.</p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>+ Nova Transação</Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="h-11 px-5 border-white/10 glass hover:bg-white/5 font-bold rounded-xl gap-2">
+            <Download size={18} /> Exportar
+          </Button>
+          <Button 
+            onClick={() => setModalOpen(true)}
+            className="h-11 px-6 shadow-xl shadow-primary/25 hover:scale-[1.03] active:scale-95 transition-all font-bold rounded-xl gap-2"
+          >
+            <Plus size={18} /> Nova Operação
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Cards for Filtered Data */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-green-500/10 border-green-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600 dark:text-green-400">Receitas do Período</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {periodIncome.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </p>
-              </div>
-              <ArrowUpCircle className="h-8 w-8 text-green-500 opacity-60" />
+      {/* Stats row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-1 reveal-item">
+        <Card className="glass-card group overflow-hidden border-none shadow-xl border-l-4 border-l-emerald-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Entradas no Período</CardTitle>
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform">
+              <ArrowUpCircle className="h-5 w-5" />
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black text-emerald-500">
+              {periodIncome.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </div>
+            <p className="text-[10px] text-emerald-500/60 mt-1 font-bold uppercase">Soma de recebíveis</p>
           </CardContent>
         </Card>
-        <Card className="bg-red-500/10 border-red-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-600 dark:text-red-400">Despesas do Período</p>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {periodExpense.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </p>
-              </div>
-              <ArrowDownCircle className="h-8 w-8 text-red-500 opacity-60" />
+
+        <Card className="glass-card group overflow-hidden border-none shadow-xl border-l-4 border-l-rose-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Saídas no Período</CardTitle>
+            <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-500 group-hover:scale-110 transition-transform">
+              <ArrowDownCircle className="h-5 w-5" />
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black text-rose-500">
+              {periodExpense.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </div>
+            <p className="text-[10px] text-rose-500/60 mt-1 font-bold uppercase">Soma de débitos</p>
           </CardContent>
         </Card>
-        <Card className="bg-primary/10 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-primary">Saldo do Período</p>
-                <p className="text-2xl font-bold text-primary">
-                  {(periodIncome - periodExpense).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </p>
-              </div>
-              <Filter className="h-8 w-8 text-primary opacity-60" />
+
+        <Card className="glass-card group overflow-hidden border-none shadow-xl border-l-4 border-l-primary">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Saldo do Filtro</CardTitle>
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform">
+              <Landmark className="h-5 w-5" />
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-3xl font-black ${(periodIncome - periodExpense) >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+              {(periodIncome - periodExpense).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </div>
+            <p className="text-[10px] text-primary/60 mt-1 font-bold uppercase">Resultado líquido</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter size={18} /> Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Busca</Label>
+      {/* Filters */}
+      <Card className="glass-card reveal-item border-none shadow-xl">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="space-y-2 group">
+              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1 group-focus-within:text-primary transition-colors">Pesquisa Avançada</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input 
-                  placeholder="Pesquisar..." 
-                  className="pl-9"
+                  placeholder="Descrição ou categoria..." 
+                  className="pl-10 h-11 glass border-white/5 focus-visible:ring-primary rounded-xl font-medium"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Tipo</Label>
+            <div className="space-y-2 group">
+              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">Tipo de Fluxo</Label>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 glass border-white/5 rounded-xl font-medium">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="income">Receita</SelectItem>
-                  <SelectItem value="expense">Despesa</SelectItem>
-                  <SelectItem value="installment">Parcelamento</SelectItem>
-                  <SelectItem value="recurring">Recorrente</SelectItem>
+                <SelectContent className="glass-card border-white/10">
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  <SelectItem value="income">Receitas</SelectItem>
+                  <SelectItem value="expense">Despesas</SelectItem>
+                  <SelectItem value="installment">Parcelamentos</SelectItem>
+                  <SelectItem value="recurring">Recorrentes</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Mês</Label>
+            <div className="space-y-2 group">
+              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">Mês de Referência</Label>
               <Select value={monthFilter} onValueChange={setMonthFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 glass border-white/5 rounded-xl font-medium">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="glass-card border-white/10 max-h-[300px]">
                   {months.map(m => (
                     <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Ano</Label>
+            <div className="space-y-2 group">
+              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">Ano Fiscal</Label>
               <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 glass border-white/5 rounded-xl font-medium">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="glass-card border-white/10">
                   {years.map(y => (
                     <SelectItem key={y} value={y}>{y}</SelectItem>
                   ))}
@@ -240,52 +248,88 @@ export const TransactionsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Transactions List */}
-      <Card>
+      {/* Transactions Table */}
+      <Card className="glass-card reveal-item border-none shadow-2xl overflow-hidden py-0">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[400px]">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b border-border">
+              <thead className="bg-white/5 border-b border-white/5">
                 <tr>
-                  <th className="text-left p-4 font-medium">Data</th>
-                  <th className="text-left p-4 font-medium">Descrição</th>
-                  <th className="text-left p-4 font-medium">Categoria</th>
-                  <th className="text-left p-4 font-medium text-right">Valor</th>
-                  <th className="text-right p-4 font-medium">Ações</th>
+                  <th className="text-left p-6 font-black uppercase text-[10px] tracking-widest opacity-50 pl-8 text-nowrap">Data</th>
+                  <th className="text-left p-6 font-black uppercase text-[10px] tracking-widest opacity-50">Descrição / Tipo</th>
+                  <th className="text-left p-6 font-black uppercase text-[10px] tracking-widest opacity-50">Categoria</th>
+                  <th className="text-right p-6 font-black uppercase text-[10px] tracking-widest opacity-50">Valor</th>
+                  <th className="text-right p-6 font-black uppercase text-[10px] tracking-widest opacity-50 pr-8">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-white/5">
                 {filteredTransactions.map(tx => (
-                  <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-4 whitespace-nowrap">{tx.date.toLocaleDateString('pt-BR')}</td>
-                    <td className="p-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{tx.description}</span>
-                        <span className="text-xs text-muted-foreground capitalize">{tx.type}</span>
+                  <tr key={tx.id} className="group hover:bg-primary/5 transition-all">
+                    <td className="p-6 pl-8 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="size-9 rounded-xl glass border-white/5 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:scale-110 transition-all">
+                          <Calendar size={16} />
+                        </div>
+                        <span className="font-bold tabular-nums opacity-80">{tx.date.toLocaleDateString('pt-BR')}</span>
                       </div>
                     </td>
-                    <td className="p-4">
-                      <span className="px-2 py-1 bg-accent rounded-full text-xs">{tx.category}</span>
+                    <td className="p-6">
+                      <div className="flex flex-col">
+                        <span className="font-black text-base tracking-tight group-hover:text-primary transition-colors">{tx.description}</span>
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-sm ${
+                            tx.type === 'income' || tx.type === 'recurring' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
+                          }`}>
+                            {tx.type === 'income' ? 'Receita' : tx.type === 'expense' ? 'Despesa' : tx.type === 'installment' ? 'Parcelado' : 'Recorrente'}
+                          </span>
+                        </div>
+                      </div>
                     </td>
-                    <td className={`p-4 text-right font-bold ${tx.type === 'income' || tx.type === 'recurring' ? 'text-green-500' : 'text-foreground'}`}>
-                      {tx.type === 'income' || tx.type === 'recurring' ? '+' : '-'}{tx.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    <td className="p-6">
+                      <div className="flex items-center gap-2">
+                        <Tag size={12} className="text-primary/50" />
+                        <span className="px-3 py-1 glass border-white/5 rounded-full text-[10px] font-black uppercase tracking-widest opacity-80 group-hover:opacity-100 transition-opacity">
+                          {tx.category}
+                        </span>
+                      </div>
                     </td>
-                    <td className="p-4 text-right">
+                    <td className={`p-6 text-right font-black text-lg tabular-nums ${
+                      tx.type === 'income' || tx.type === 'recurring' ? 'text-emerald-500' : 'text-slate-200'
+                    }`}>
+                      {tx.type === 'income' || tx.type === 'recurring' ? '+' : '-'}
+                      {tx.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </td>
+                    <td className="p-6 text-right pr-8">
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="size-10 rounded-xl text-rose-500/50 hover:text-rose-500 hover:bg-rose-500/10 active:scale-90 transition-all border border-transparent hover:border-rose-500/20"
                         onClick={() => handleDelete(tx.id)}
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={18} />
                       </Button>
                     </td>
                   </tr>
                 ))}
                 {filteredTransactions.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-muted-foreground italic">
-                      {loading ? 'Carregando...' : 'Nenhuma transação encontrada para os filtros selecionados.'}
+                    <td colSpan={5} className="p-20 text-center">
+                      <div className="flex flex-col items-center gap-4 text-muted-foreground">
+                        <div className="p-6 rounded-3xl glass opacity-10">
+                          <Receipt size={64} />
+                        </div>
+                        <div className="space-y-1">
+                           <p className="font-black text-2xl text-foreground/80 tracking-tight">Vazio total</p>
+                           <p className="font-medium text-sm italic opacity-50">
+                             {loading ? 'Sincronizando dados...' : 'Nenhum registro encontrado para estes filtros.'}
+                           </p>
+                        </div>
+                        {!loading && (
+                          <Button variant="outline" className="mt-2 glass border-white/10 font-bold" onClick={() => {setSearchTerm(''); setTypeFilter('all'); setMonthFilter('all')}}>
+                            Limpar Filtros
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )}

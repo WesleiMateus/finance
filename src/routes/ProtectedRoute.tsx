@@ -27,7 +27,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />; // Or to a restricted page
+    console.warn(`Access denied to ${window.location.pathname}. user.role: ${user.role}, required: ${allowedRoles.join(',')}`);
+    return <Navigate to="/" replace />;
   }
 
   if (!allowedStatuses.includes(user.status)) {
@@ -37,12 +38,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Redirect to onboarding if not completed and trying to access main routes
-  if (user.role === 'user' && !user.onboardingCompleted && window.location.pathname !== '/onboarding') {
+  if ((user.role === 'user' || user.role === 'admin' || user.role === 'owner') && !user.onboardingCompleted && window.location.pathname !== '/onboarding' && window.location.pathname !== '/login') {
     return <Navigate to="/onboarding" replace />;
   }
-
-  // If status is pending but they try to access non-dashboard routes, handle it in components or restrict routes here
-  // According to rules: pending can log in, view financial data, see payment dialog, but CUD ops are blocked. 
 
   return <Outlet />;
 };
