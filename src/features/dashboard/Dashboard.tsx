@@ -7,20 +7,18 @@ import type { Transaction, Goal } from '../../types';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Progress } from '../../components/ui/progress';
-import { TransactionModal } from './TransactionModal';
 import { toast } from 'sonner';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line 
 } from 'recharts';
 import { useGsapStagger, useGsapReveal } from '../../hooks/useGsap';
-import { Wallet, TrendingUp, TrendingDown, Target, CalendarDays, ArrowUpRight, Plus } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Target, CalendarDays, ArrowUpRight } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuthStore();
-  const { transactions, setTransactions, consolidatedBalance, goals, setGoals } = useFinanceStore();
-  const [modalOpen, setModalOpen] = useState(false);
+  const { transactions, setTransactions, consolidatedBalance, goals, setGoals, refreshCounter } = useFinanceStore();
   const [loading, setLoading] = useState(true);
 
   const fetchFinanceData = async () => {
@@ -73,7 +71,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchFinanceData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, refreshCounter]);
 
   // Derived Statistics
   const totalIncome = transactions.filter(t => t.type === 'income' || t.type === 'recurring').reduce((acc, t) => acc + t.amount, 0);
@@ -150,30 +148,22 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div ref={containerRef} className="space-y-8 pb-12">
+    <div ref={containerRef} className="space-y-6 md:space-y-8 pb-12">
       {/* Header section */}
       <div ref={headerRef} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-extrabold tracking-tight text-gradient">Dashboard</h1>
-          <p className="text-muted-foreground font-medium">Bem-vindo de volta! Aqui está sua visão financeira premium.</p>
+          <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-gradient text-center md:text-left">Dashboard</h1>
+          <p className="text-muted-foreground font-medium text-xs md:text-base text-center md:text-left">Bem-vindo de volta! Aqui está sua visão financeira premium.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
           {user?.status === 'pending' && (
-            <Badge variant="destructive" className="animate-pulse py-1.5 px-4 shadow-lg shadow-destructive/20">
+            <Badge variant="destructive" className="animate-pulse py-1.5 px-4 shadow-lg shadow-destructive/20 w-full sm:w-auto justify-center">
               Pagamento Pendente
             </Badge>
           )}
           {user?.status === 'blocked' && (
-            <Badge variant="destructive" className="py-1.5 px-4">Conta Bloqueada</Badge>
+            <Badge variant="destructive" className="py-1.5 px-4 w-full sm:w-auto justify-center">Conta Bloqueada</Badge>
           )}
-          
-          <Button 
-            onClick={() => setModalOpen(true)} 
-            disabled={user?.status === 'pending' || user?.status === 'blocked'}
-            className="gap-2 h-11 px-6 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
-          >
-            <Plus size={20} /> Nova Transação
-          </Button>
         </div>
       </div>
       
@@ -192,7 +182,7 @@ export const Dashboard: React.FC = () => {
             <Wallet className="w-5 h-5 text-primary opacity-70 group-hover:scale-125 transition-transform" />
           </CardHeader>
           <CardContent>
-            <div className={`text-4xl font-extrabold tracking-tight ${consolidatedBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+            <div className={`text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight ${consolidatedBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
               {consolidatedBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </div>
             <p className="text-xs text-muted-foreground mt-2 font-medium">Saldo atual em todas as contas</p>
@@ -206,7 +196,7 @@ export const Dashboard: React.FC = () => {
             <TrendingUp className="w-5 h-5 text-emerald-500 opacity-70 group-hover:scale-125 transition-transform" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-extrabold tracking-tight text-emerald-500">
+            <div className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-emerald-500">
               {totalIncome.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </div>
             <div className="flex items-center gap-1 text-emerald-500/80 text-xs font-bold mt-2">
@@ -221,7 +211,7 @@ export const Dashboard: React.FC = () => {
             <TrendingDown className="w-5 h-5 text-rose-500 opacity-70 group-hover:scale-125 transition-transform" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-extrabold tracking-tight text-rose-500">
+            <div className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-rose-500">
               {totalExpense.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </div>
             <p className="text-xs text-rose-500/80 mt-2 font-bold">Saídas totais do período</p>
@@ -275,7 +265,7 @@ export const Dashboard: React.FC = () => {
             </CardTitle>
             <CardDescription className="font-medium">Métrica de comparação do ciclo financeiro</CardDescription>
           </CardHeader>
-          <CardContent className="h-72">
+          <CardContent className="h-64 md:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={incomeExpenseData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
@@ -305,7 +295,7 @@ export const Dashboard: React.FC = () => {
             </CardTitle>
             <CardDescription className="font-medium">Distribuição dos seus gastos</CardDescription>
           </CardHeader>
-          <CardContent className="h-72 relative flex items-center justify-center">
+          <CardContent className="h-64 md:h-72 relative flex items-center justify-center">
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -372,24 +362,24 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-3">
                {transactions.slice(0, 5).map(tx => (
                   <div key={tx.id} className="group flex items-center justify-between p-4 glass rounded-2xl border-white/5 hover:border-primary/30 hover:scale-[1.01] transition-all duration-300">
-                     <div className="flex items-center gap-4">
-                       <div className={`p-3 rounded-xl ${tx.type === 'income' || tx.type === 'recurring' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                     <div className="flex items-center gap-4 min-w-0 flex-1 mr-4">
+                       <div className={`p-3 rounded-xl flex-shrink-0 ${tx.type === 'income' || tx.type === 'recurring' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                          {tx.type === 'income' || tx.type === 'recurring' ? <ArrowUpRight size={20} /> : <TrendingDown size={20} />}
                        </div>
-                       <div className="flex flex-col">
-                         <span className="font-bold text-sm tracking-tight">{tx.description || tx.category}</span>
+                       <div className="flex flex-col min-w-0">
+                         <span className="font-bold text-sm tracking-tight truncate">{tx.description || tx.category}</span>
                          <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold opacity-50">
-                            <span>{tx.date.toLocaleDateString('pt-BR')}</span>
-                            <span>•</span>
-                            <span className="text-primary">{tx.category}</span>
+                            <span className="shrink-0">{tx.date.toLocaleDateString('pt-BR')}</span>
+                            <span className="shrink-0">•</span>
+                            <span className="text-primary truncate">{tx.category}</span>
                          </div>
                        </div>
                      </div>
-                     <div className="text-right">
-                       <div className={`font-black text-lg ${tx.type === 'income' || tx.type === 'recurring' ? 'text-emerald-500' : 'text-foreground'}`}>
+                     <div className="text-right flex-shrink-0">
+                       <div className={`font-black text-sm whitespace-nowrap ${tx.type === 'income' || tx.type === 'recurring' ? 'text-emerald-500' : 'text-foreground'}`}>
                          {tx.type === 'income' || tx.type === 'recurring' ? '+' : '-'}{tx.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                        </div>
-                       <Badge variant="outline" className="text-[9px] h-4 font-bold border-primary/20 text-primary/70">{tx.type}</Badge>
+                       <Badge variant="outline" className="text-[9px] h-4 font-bold border-primary/20 text-primary/70 whitespace-nowrap">{tx.type}</Badge>
                      </div>
                   </div>
                ))}
@@ -403,11 +393,6 @@ export const Dashboard: React.FC = () => {
          </CardContent>
       </Card>
 
-      <TransactionModal 
-        open={modalOpen} 
-        onOpenChange={setModalOpen} 
-        onSuccess={fetchFinanceData}
-      />
     </div>
   );
 };

@@ -4,10 +4,17 @@ import { useUIStore } from '../store/useUIStore';
 import { Sun, Moon, LogOut, LayoutDashboard, Receipt, Target, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import { ActionFAB } from '../components/ActionFAB';
+import { TransactionModal } from '../features/dashboard/TransactionModal';
+import { GoalModal } from '../features/dashboard/GoalModal';
+import { useModalStore } from '../store/useModalStore';
+import { useFinanceStore } from '../store/useFinanceStore';
 
 export const BaseLayout: React.FC = () => {
   const { theme, setTheme } = useUIStore();
   const { user, signOut } = useAuthStore();
+  const { modals, closeModal } = useModalStore();
+  const { triggerRefresh } = useFinanceStore();
   const location = useLocation();
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -31,7 +38,10 @@ export const BaseLayout: React.FC = () => {
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
             A
           </div>
-          <h1 className="text-xl font-bold text-foreground hidden sm:block">Aurora Finance</h1>
+          <h1 className="text-xl font-bold text-foreground overflow-hidden text-ellipsis whitespace-nowrap">
+            <span className="hidden xs:inline">Aurora Finance</span>
+            <span className="xs:hidden">Aurora</span>
+          </h1>
         </div>
 
         <div className="flex items-center gap-4">
@@ -79,8 +89,8 @@ export const BaseLayout: React.FC = () => {
       </main>
 
       {/* Floating DownBar Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-2 pt-2 px-4 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
-        <nav className="flex items-center bg-card border border-border rounded-full px-2 py-2 shadow-lg gap-2 pointer-events-auto backdrop-blur-md bg-card/90">
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-2 pt-2 px-2 sm:px-4 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+        <nav className="flex items-center bg-card border border-border rounded-full px-1.5 py-1.5 shadow-lg gap-1 sm:gap-2 pointer-events-auto backdrop-blur-md bg-card/90">
           {navItems.map((item) => {
             const isActive = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
             const Icon = item.icon;
@@ -89,19 +99,34 @@ export const BaseLayout: React.FC = () => {
               <Link
                 key={item.name}
                 to={item.path}
-                className={`relative flex items-center justify-center gap-2 px-4 py-2.5 rounded-full transition-all duration-300 ease-out font-medium text-sm
+                className={`relative flex items-center justify-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all duration-300 ease-out font-medium text-xs sm:text-sm
                   ${isActive 
-                    ? 'bg-primary text-primary-foreground shadow-md scale-100 px-5' 
+                    ? 'bg-primary text-primary-foreground shadow-md scale-100' 
                     : 'text-foreground/60 hover:text-foreground hover:bg-accent hover:scale-105'
                   }`}
               >
-                <Icon size={18} className={isActive ? 'animate-pulse' : ''} />
-                {isActive && <span className="animate-in fade-in slide-in-from-left-2">{item.name}</span>}
+                <Icon size={isActive ? 18 : 20} className={isActive ? 'animate-pulse' : ''} />
+                {isActive && <span className="animate-in fade-in slide-in-from-left-2 truncate max-w-[80px] sm:max-w-none">{item.name}</span>}
               </Link>
             );
           })}
         </nav>
       </div>
+
+      {/* Global FAB */}
+      <ActionFAB />
+
+      {/* Global Modals */}
+      <TransactionModal 
+        open={modals.transaction} 
+        onOpenChange={(open) => !open && closeModal('transaction')} 
+        onSuccess={triggerRefresh}
+      />
+      <GoalModal 
+        open={modals.goal} 
+        onOpenChange={(open) => !open && closeModal('goal')} 
+        onSuccess={triggerRefresh}
+      />
 
     </div>
   );

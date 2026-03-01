@@ -6,12 +6,14 @@ interface FinanceState {
   goals: Goal[];
   loading: boolean;
   consolidatedBalance: number;
+  refreshCounter: number;
   setTransactions: (transactions: Transaction[]) => void;
   setGoals: (goals: Goal[]) => void;
   addTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
   setLoading: (loading: boolean) => void;
   calculateBalance: () => void;
+  triggerRefresh: () => void;
 }
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
@@ -19,6 +21,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   goals: [],
   loading: false,
   consolidatedBalance: 0,
+  refreshCounter: 0,
   
   setTransactions: (transactions) => {
     set({ transactions });
@@ -46,5 +49,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       return isPositive ? acc + curr.amount : acc - curr.amount;
     }, 0);
     set({ consolidatedBalance: balance });
-  }
+  },
+
+  triggerRefresh: () => set((state) => ({ refreshCounter: state.refreshCounter + 1 }))
 }));

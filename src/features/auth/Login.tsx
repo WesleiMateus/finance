@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -13,7 +14,15 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { user } = useAuthStore();
   const navigate = useNavigate();
+
+  // Handle automatic redirect after store sync
+  React.useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +35,7 @@ export const Login: React.FC = () => {
       setLoading(true);
       await signInWithEmailAndPassword(auth, email, password);
       toast.success('Successfully logged in');
-      navigate('/');
+      // Navigation is now handled by the useEffect above
     } catch (error: any) {
       toast.error('Failed to log in: ' + (error.message || 'Unknown error'));
       setLoading(false);

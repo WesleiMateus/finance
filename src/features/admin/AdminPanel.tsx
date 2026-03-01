@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/input';
 import { 
   MoreHorizontal, Users, RefreshCw, 
   Search, ShieldCheck, Activity, AlertCircle, CheckCircle2,
-  Clock, UserPlus, Filter, TrendingDown, ArrowUpRight
+  Clock, UserPlus, Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -127,13 +127,13 @@ export const AdminPanel: React.FC = () => {
   return (
     <div ref={containerRef} className="space-y-10 pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
       {/* Header section */}
-      <div ref={headerRef} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 px-2">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3 mb-1">
+      <div ref={headerRef} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 px-2 text-center md:text-left">
+        <div className="space-y-1 w-full md:w-auto">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-3 mb-1">
             <div className="bg-primary/10 p-2.5 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
               <ShieldCheck className="text-primary w-7 h-7" />
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-gradient">Painel Master</h1>
+            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-gradient">Painel Master</h1>
           </div>
           <p className="text-muted-foreground font-medium ml-1">Monitoramento global e gestão de acessos do Aurora Finance.</p>
           
@@ -152,18 +152,18 @@ export const AdminPanel: React.FC = () => {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
           <Button 
             variant="outline" 
             onClick={() => setIsDiagnosticOpen(!isDiagnosticOpen)}
-            className="gap-2 px-5 h-11 border-primary/20 hover:bg-primary/5 font-bold rounded-xl transition-all"
+            className="gap-2 px-5 h-11 border-primary/20 hover:bg-primary/5 font-bold rounded-xl transition-all w-full sm:w-auto justify-center"
           >
             <Activity size={18} /> {isDiagnosticOpen ? 'Fechar Saúde' : 'Saúde do Sistema'}
           </Button>
           <Button 
             onClick={() => subscribeToUsers()} 
             disabled={loading} 
-            className="gap-2 h-11 px-8 shadow-xl shadow-primary/25 hover:scale-[1.03] active:scale-95 transition-all font-bold rounded-xl"
+            className="gap-2 h-11 px-8 shadow-xl shadow-primary/25 hover:scale-[1.03] active:scale-95 transition-all font-bold rounded-xl w-full sm:w-auto justify-center"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             {loading ? 'Sincronizando...' : 'Atualizar Dados'}
@@ -228,8 +228,8 @@ export const AdminPanel: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="pb-6">
-            <div className="text-4xl font-black text-gradient">{stats.total}</div>
-            <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1 font-bold opacity-70 uppercase tracking-tighter">
+            <div className="text-2xl md:text-3xl lg:text-4xl font-black text-gradient">{stats.total}</div>
+            <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1 font-bold opacity-70 uppercase tracking-tighter justify-center md:justify-start">
               <UserPlus size={12} /> Base sincronizada
             </p>
           </CardContent>

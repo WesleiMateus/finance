@@ -3,6 +3,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -15,7 +16,15 @@ export const SignUp: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { user } = useAuthStore();
   const navigate = useNavigate();
+
+  // Handle automatic redirect after store sync
+  React.useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +55,7 @@ export const SignUp: React.FC = () => {
       });
 
       toast.success('Conta criada com sucesso');
-      navigate('/');
+      // Navigation is now handled by the useEffect above
     } catch (error: any) {
       toast.error('Falha ao criar conta: ' + (error.message || 'Erro desconhecido'));
       setLoading(false);

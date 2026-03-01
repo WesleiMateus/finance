@@ -5,24 +5,28 @@ import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import type { Transaction } from '../../types';
 import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { TransactionModal } from '../dashboard/TransactionModal';
+import { 
+  Dialog, DialogContent, DialogTitle, 
+  DialogDescription, DialogFooter 
+} from '../../components/ui/dialog';
 import { toast } from 'sonner';
 import { 
-  Trash2, Filter, ArrowUpCircle, ArrowDownCircle, Search, 
-  Calendar, CreditCard, Tag, Landmark, Receipt, RefreshCw, Plus,
-  ChevronRight, Download
+  Trash2, ArrowUpCircle, ArrowDownCircle, Search, 
+  Calendar, Tag, Landmark, Receipt,
+  Download, FilterX, X, AlertTriangle
 } from 'lucide-react';
 import { useGsapReveal, useGsapStagger } from '../../hooks/useGsap';
 
 export const TransactionsPage: React.FC = () => {
   const { user } = useAuthStore();
-  const { transactions, setTransactions, deleteTransaction } = useFinanceStore();
+  const { transactions, setTransactions, deleteTransaction, refreshCounter } = useFinanceStore();
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,16 +67,20 @@ export const TransactionsPage: React.FC = () => {
 
   useEffect(() => {
     if (user) fetchTransactions();
-  }, [user]);
+  }, [user, refreshCounter]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await deleteDoc(doc(db, 'transactions', id));
-      deleteTransaction(id);
+      setIsDeleting(true);
+      await deleteDoc(doc(db, 'transactions', deleteId));
+      deleteTransaction(deleteId);
       toast.success('Transação excluída com sucesso');
+      setDeleteId(null);
     } catch (err: any) {
       toast.error('Erro ao excluir: ' + err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -122,19 +130,13 @@ export const TransactionsPage: React.FC = () => {
     <div ref={containerRef} className="space-y-10 pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 font-outfit">
       {/* Header */}
       <div ref={headerRef} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-2">
-        <div className="space-y-1">
-          <h1 className="text-4xl font-extrabold tracking-tight text-gradient">Fluxo de Caixa</h1>
-          <p className="text-muted-foreground font-medium">Controle granular de todas as movimentações financeiras.</p>
+        <div className="space-y-1 text-center md:text-left">
+          <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-gradient">Fluxo de Caixa</h1>
+          <p className="text-muted-foreground font-medium text-xs md:text-base">Controle granular de todas as movimentações financeiras.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="h-11 px-5 border-white/10 glass hover:bg-white/5 font-bold rounded-xl gap-2">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <Button variant="outline" className="h-11 px-5 border-white/10 glass hover:bg-white/5 font-bold rounded-xl gap-2 w-full sm:w-auto justify-center">
             <Download size={18} /> Exportar
-          </Button>
-          <Button 
-            onClick={() => setModalOpen(true)}
-            className="h-11 px-6 shadow-xl shadow-primary/25 hover:scale-[1.03] active:scale-95 transition-all font-bold rounded-xl gap-2"
-          >
-            <Plus size={18} /> Nova Operação
           </Button>
         </div>
       </div>
@@ -188,40 +190,72 @@ export const TransactionsPage: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <Card className="glass-card reveal-item border-none shadow-xl">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="space-y-2 group">
-              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1 group-focus-within:text-primary transition-colors">Pesquisa Avançada</Label>
+      <Card className="glass-card reveal-item border-none shadow-xl border-t border-white/5">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-black uppercase tracking-tighter text-primary/80">Filtragem Inteligente</CardTitle>
+            <p className="text-[10px] text-muted-foreground font-medium">Refine sua busca por data, tipo ou descrição.</p>
+          </div>
+          {(searchTerm || typeFilter !== 'all' || monthFilter !== 'all') && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {setSearchTerm(''); setTypeFilter('all'); setMonthFilter('all')}}
+              className="h-8 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 gap-2 rounded-lg"
+            >
+              <FilterX size={14} /> Limpar Filtros
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="p-6 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div className="md:col-span-5 space-y-2 group">
+              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1 group-focus-within:text-primary transition-colors flex items-center gap-1.5">
+                <Search size={10} /> Pesquisa por Texto
+              </Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input 
-                  placeholder="Descrição ou categoria..." 
-                  className="pl-10 h-11 glass border-white/5 focus-visible:ring-primary rounded-xl font-medium"
+                  placeholder="Ex: Aluguel, Supermercado, Salário..." 
+                  className="pl-10 h-11 glass border-white/10 focus-visible:ring-primary rounded-xl font-medium placeholder:opacity-30"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
+                {searchTerm && (
+                   <button 
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full hover:bg-white/10 flex items-center justify-center opacity-50 hover:opacity-100 transition-opacity"
+                   >
+                     <X size={12} />
+                   </button>
+                )}
               </div>
             </div>
-            <div className="space-y-2 group">
-              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">Tipo de Fluxo</Label>
+            
+            <div className="md:col-span-3 space-y-2 group">
+              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1 flex items-center gap-1.5">
+                <Landmark size={10} /> Categoria/Tipo
+              </Label>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-11 glass border-white/5 rounded-xl font-medium">
+                <SelectTrigger className="h-11 glass border-white/10 rounded-xl font-medium">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="glass-card border-white/10">
-                  <SelectItem value="all">Todos os tipos</SelectItem>
-                  <SelectItem value="income">Receitas</SelectItem>
-                  <SelectItem value="expense">Despesas</SelectItem>
+                  <SelectItem value="all">Todas as transações</SelectItem>
+                  <SelectItem value="income" className="text-emerald-500 font-bold">Receitas (+)</SelectItem>
+                  <SelectItem value="expense" className="text-rose-500 font-bold">Despesas (-)</SelectItem>
                   <SelectItem value="installment">Parcelamentos</SelectItem>
                   <SelectItem value="recurring">Recorrentes</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 group">
-              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">Mês de Referência</Label>
+
+            <div className="md:col-span-2 space-y-2 group">
+              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1 flex items-center gap-1.5">
+                <Calendar size={10} /> Mês
+              </Label>
               <Select value={monthFilter} onValueChange={setMonthFilter}>
-                <SelectTrigger className="h-11 glass border-white/5 rounded-xl font-medium">
+                <SelectTrigger className="h-11 glass border-white/10 rounded-xl font-medium">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="glass-card border-white/10 max-h-[300px]">
@@ -231,10 +265,13 @@ export const TransactionsPage: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 group">
-              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">Ano Fiscal</Label>
+
+            <div className="md:col-span-2 space-y-2 group">
+              <Label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1 flex items-center gap-1.5">
+                <Calendar size={10} /> Ano
+              </Label>
               <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger className="h-11 glass border-white/5 rounded-xl font-medium">
+                <SelectTrigger className="h-11 glass border-white/10 rounded-xl font-medium">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="glass-card border-white/10">
@@ -304,7 +341,7 @@ export const TransactionsPage: React.FC = () => {
                         variant="ghost" 
                         size="icon" 
                         className="size-10 rounded-xl text-rose-500/50 hover:text-rose-500 hover:bg-rose-500/10 active:scale-90 transition-all border border-transparent hover:border-rose-500/20"
-                        onClick={() => handleDelete(tx.id)}
+                        onClick={() => setDeleteId(tx.id)}
                       >
                         <Trash2 size={18} />
                       </Button>
@@ -339,11 +376,42 @@ export const TransactionsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <TransactionModal 
-        open={modalOpen} 
-        onOpenChange={setModalOpen} 
-        onSuccess={fetchTransactions}
-      />
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent className="glass-card border-white/10 max-w-[400px] p-0 overflow-hidden">
+          <div className="p-8 space-y-6">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="p-4 rounded-3xl bg-rose-500/10 text-rose-500 animate-pulse">
+                <AlertTriangle size={48} strokeWidth={1.5} />
+              </div>
+              <div className="space-y-2">
+                <DialogTitle className="text-2xl font-black tracking-tight">Confirmar Exclusão</DialogTitle>
+                <DialogDescription className="text-muted-foreground font-medium text-sm">
+                  Esta ação é irreversível. A transação será removida permanentemente de seus registros.
+                </DialogDescription>
+              </div>
+            </div>
+
+            <DialogFooter className="flex-col sm:flex-row gap-3 pt-4 border-t border-white/5">
+              <Button 
+                variant="ghost" 
+                className="flex-1 h-12 rounded-2xl glass border-white/5 font-bold hover:bg-white/5"
+                onClick={() => setDeleteId(null)}
+                disabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                className="flex-1 h-12 rounded-2xl bg-rose-500 hover:bg-rose-600 shadow-xl shadow-rose-500/20 font-black"
+                onClick={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Excluindo...' : 'Sim, Excluir'}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
