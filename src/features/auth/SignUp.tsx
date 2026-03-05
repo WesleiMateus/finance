@@ -8,8 +8,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { toast } from 'sonner';
-import { useGsapStagger } from '../../hooks/useGsap';
-import { Mail, Lock, User, RefreshCw, ArrowRight } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export const SignUp: React.FC = () => {
   const [name, setName] = useState('');
@@ -19,7 +18,6 @@ export const SignUp: React.FC = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  // Handle automatic redirect after store sync
   React.useEffect(() => {
     if (user) {
       navigate('/', { replace: true });
@@ -35,119 +33,117 @@ export const SignUp: React.FC = () => {
 
     try {
       setLoading(true);
-      // Create auth user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 30 days initial access
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + 30);
 
-      // Create firestore user document
       await setDoc(doc(db, 'users', user.uid), {
         name: name,
         email: email,
-        role: 'user', // default role
-        status: 'active', // default status
+        role: 'user',
+        status: 'active',
         subscriptionExpiresAt: Timestamp.fromDate(expiryDate),
         createdAt: Timestamp.now(),
         onboardingCompleted: false
       });
 
-      toast.success('Conta criada com sucesso');
-      // Navigation is now handled by the useEffect above
+      toast.success('Conta mestre criada com sucesso');
     } catch (error: any) {
       toast.error('Falha ao criar conta: ' + (error.message || 'Erro desconhecido'));
       setLoading(false);
     }
   };
 
-  const containerRef = useGsapStagger('.reveal-item', 0.1, 0.1);
-
   return (
-    <div ref={containerRef} className="space-y-8">
-      <div className="reveal-item space-y-2">
-        <h2 className="text-3xl font-black tracking-tight text-gradient">Criar conta master</h2>
-        <p className="text-sm font-medium text-muted-foreground">Comece a gerenciar suas finanças de forma inteligente.</p>
+    <form onSubmit={handleSignUp} className="space-y-6">
+      <div className="mb-12">
+        <h1 className="text-slate-900 dark:text-white text-3xl font-semibold">Faça parte de nosso time</h1>
+        <p className="text-slate-600 dark:text-slate-400 text-[15px] mt-6 leading-relaxed">
+          Crie sua conta hoje mesmo e comece sua jornada financeira conosco. Leva menos de um minuto.
+        </p>
       </div>
 
-      <form onSubmit={handleSignUp} className="space-y-5 reveal-item">
-        <div className="space-y-4">
-          <div className="space-y-2 group">
-            <Label htmlFor="name" className="text-xs font-black uppercase tracking-widest ml-1 opacity-70 group-focus-within:text-primary transition-colors">Nome Completo</Label>
-            <div className="relative">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground size-4 group-focus-within:text-primary transition-colors" />
-              <Input 
-                id="name"
-                placeholder="Como quer ser chamado?" 
-                className="pl-11 h-12 glass border-white/10 focus-visible:ring-primary focus-visible:border-primary/50 transition-all font-medium rounded-xl"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2 group">
-            <Label htmlFor="email" className="text-xs font-black uppercase tracking-widest ml-1 opacity-70 group-focus-within:text-primary transition-colors">E-mail Corporativo</Label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground size-4 group-focus-within:text-primary transition-colors" />
-              <Input 
-                id="email"
-                type="email" 
-                placeholder="exemplo@empresa.com" 
-                className="pl-11 h-12 glass border-white/10 focus-visible:ring-primary focus-visible:border-primary/50 transition-all font-medium rounded-xl"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2 group">
-            <Label htmlFor="password" className="text-xs font-black uppercase tracking-widest ml-1 opacity-70 group-focus-within:text-primary transition-colors">Senha de Acesso</Label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground size-4 group-focus-within:text-primary transition-colors" />
-              <Input 
-                id="password"
-                type="password" 
-                placeholder="Mínimo 6 caracteres" 
-                className="pl-11 h-12 glass border-white/10 focus-visible:ring-primary focus-visible:border-primary/50 transition-all font-medium rounded-xl"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-              />
-            </div>
+      <div className="space-y-5">
+        <div>
+          <Label className="text-slate-900 dark:text-slate-200 text-sm font-medium mb-2 block">Nome Completo</Label>
+          <div className="relative flex items-center">
+            <Input 
+              name="name" 
+              type="text" 
+              required 
+              className="w-full text-sm text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 pl-4 pr-10 py-3 h-10 rounded-md outline-blue-600 bg-transparent" 
+              placeholder="Como deseja ser chamado?"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={loading}
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" fill="#bbb" stroke="#bbb" className="w-[18px] h-[18px] absolute right-4" viewBox="0 0 24 24">
+              <circle cx="10" cy="7" r="6" data-original="#000000"></circle>
+              <path d="M14 15H6a5 5 0 0 0-5 5 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 5 5 0 0 0-5-5zm8-4h-2.59l.3-.29a1 1 0 0 0-1.42-1.42l-2 2a1 1 0 0 0 0 1.42l2 2a1 1 0 0 0 1.42 0 1 1 0 0 0 0-1.42l-.3-.29H22a1 1 0 0 0 0-2z" data-original="#000000"></path>
+            </svg>
           </div>
         </div>
 
+        <div>
+          <Label className="text-slate-900 dark:text-slate-200 text-sm font-medium mb-2 block">E-mail de Trabalho</Label>
+          <div className="relative flex items-center">
+            <Input 
+              name="email" 
+              type="email" 
+              required 
+              className="w-full text-sm text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 pl-4 pr-10 py-3 h-10 rounded-md outline-blue-600 bg-transparent" 
+              placeholder="voce@empresa.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" fill="#bbb" stroke="#bbb" className="w-[18px] h-[18px] absolute right-4" viewBox="0 0 24 24">
+              <path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z" data-original="#000000"></path>
+            </svg>
+          </div>
+        </div>
+
+        <div>
+          <Label className="text-slate-900 dark:text-slate-200 text-sm font-medium mb-2 block">Senha Segura</Label>
+          <div className="relative flex items-center">
+            <Input 
+              name="password" 
+              type="password" 
+              required 
+              className="w-full text-sm text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 pl-4 pr-10 py-3 h-10 rounded-md outline-blue-600 bg-transparent" 
+              placeholder="Mínimo 6 caracteres"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" fill="#bbb" stroke="#bbb" className="w-[18px] h-[18px] absolute right-4 cursor-pointer" viewBox="0 0 128 128">
+              <path d="M64 104C22.127 104 1.367 67.496.504 65.943a4 4 0 0 1 0-3.887C1.367 60.504 22.127 24 64 24s62.633 36.504 63.496 38.057a4 4 0 0 1 0 3.887C126.633 67.496 105.873 104 64 104zM8.707 63.994C13.465 71.205 32.146 96 64 96c31.955 0 50.553-24.775 55.293-31.994C114.535 56.795 95.854 32 64 32 32.045 32 13.447 56.775 8.707 63.994zM64 88c-13.234 0-24-10.766-24-24s10.766-24 24-24 24 10.766 24 24-10.766 24-24 24zm0-40c-8.822 0-16 7.178-16 16s7.178 16 16 16 16-7.178 16-16-7.178-16-16-16z" data-original="#000000"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div className="!mt-12">
         <Button 
           type="submit" 
-          className="w-full h-12 mt-4 font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all rounded-xl" 
+          className="w-full shadow-xl py-5 px-4 text-[15px] font-medium tracking-wide rounded-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer disabled:opacity-50"
           disabled={loading}
         >
           {loading ? (
-            <div className="flex items-center gap-2">
-              <RefreshCw className="animate-spin size-4" />
-              <span>Processando...</span>
+            <div className="flex items-center justify-center gap-2">
+              <Loader2 className="animate-spin size-4" />
+              <span>Criando...</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <span>Finalizar Cadastro</span>
-              <ArrowRight size={18} />
-            </div>
+            'Criar minha conta'
           )}
         </Button>
-      </form>
-
-      <div className="reveal-item pt-4 text-center border-t border-white/5">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-          Já tem acesso?{' '}
-          <Link to="/login" className="text-primary hover:text-primary/80 transition-colors ml-1 font-black">
-            Fazer login
-          </Link>
+        <p className="text-sm !mt-6 text-center text-slate-600 dark:text-slate-400">
+          Possui uma conta? <Link to="/login" className="text-blue-600 dark:text-blue-400 font-medium hover:underline ml-1 whitespace-nowrap">Entrar</Link>
         </p>
       </div>
-    </div>
+    </form>
   );
 };

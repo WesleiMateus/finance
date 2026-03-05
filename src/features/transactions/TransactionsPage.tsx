@@ -20,6 +20,8 @@ import {
   Download, FilterX, X, AlertTriangle
 } from 'lucide-react';
 import { useGsapReveal, useGsapStagger } from '../../hooks/useGsap';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const TransactionsPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -126,6 +128,186 @@ export const TransactionsPage: React.FC = () => {
   const headerRef = useGsapReveal(0);
   const containerRef = useGsapStagger('.reveal-item', 0.1, 0.05);
 
+  const handleExportPDF = () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // -- BRANDING & HEADER --
+      // Background accent
+      doc.setFillColor(249, 250, 251);
+      doc.rect(0, 0, pageWidth, 50, 'F');
+      
+      // Brand Title
+      doc.setFontSize(28);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.setFont('helvetica', 'bold');
+      doc.text('Minha Aurora', 15, 25);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.setFont('helvetica', 'normal');
+      doc.text('RELATÓRIO FINANCEIRO PREMIUM', 15, 32);
+      
+      // Date info
+      const now = new Date().toLocaleString('pt-BR');
+      doc.text(`Gerado em: ${now}`, pageWidth - 15, 25, { align: 'right' });
+      
+      const periodLabel = monthFilter === 'all' 
+        ? `Ano Base: ${yearFilter}` 
+        : `Competência: ${months.find(m => m.value === monthFilter)?.label} / ${yearFilter}`;
+      doc.text(periodLabel, pageWidth - 15, 32, { align: 'right' });
+
+      // -- SUMMARY VISUAL CARDS --
+      const boxWidth = (pageWidth - 40) / 3;
+      const startY = 60;
+      
+      // Entradas Card
+      doc.setFillColor(16, 185, 129); // emerald-500
+      doc.roundedRect(15, startY, boxWidth, 30, 3, 3, 'F');
+      doc.setTextColor(255);
+      doc.setFontSize(8);
+      doc.text('ENTRADAS', 20, startY + 8);
+      doc.setFontSize(14);
+      doc.text(periodIncome.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 20, startY + 22);
+
+      // Saídas Card
+      doc.setFillColor(244, 63, 94); // rose-500
+      doc.roundedRect(20 + boxWidth, startY, boxWidth, 30, 3, 3, 'F');
+      doc.setFontSize(8);
+      doc.text('SAÍDAS', 25 + boxWidth, startY + 8);
+      doc.setFontSize(14);
+      doc.text(periodExpense.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 25 + boxWidth, startY + 22);
+
+      // Saldo Card
+      const net = periodIncome - periodExpense;
+      if (net >= 0) {
+        doc.setFillColor(37, 99, 235); // Blue
+      } else {
+        doc.setFillColor(225, 29, 72); // Red
+      }
+      doc.roundedRect(25 + (boxWidth * 2), startY, boxWidth, 30, 3, 3, 'F');
+      doc.setFontSize(8);
+      doc.text('BALANÇO LÍQUIDO', 30 + (boxWidth * 2), startY + 8);
+      doc.setFontSize(14);
+      doc.text(net.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 30 + (boxWidth * 2), startY + 22);
+
+      // -- GRAPHICAL ANALYTICS SECTION --
+      doc.setTextColor(50);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ANÁLISE VISUAL', 15, 105);
+      
+      // 1. Income vs Expense Ratio Bar
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Proporção Gastos / Receita:', 15, 115);
+      
+      const barWidth = 100;
+      const ratio = Math.min(periodExpense / (periodIncome || 1), 1.2); // max 120%
+      const fillWidth = barWidth * Math.min(ratio, 1);
+      
+      // Track
+      doc.setFillColor(240, 240, 240);
+      doc.rect(70, 111, barWidth, 6, 'F');
+      // Fill
+      doc.setFillColor(ratio > 0.9 ? 244 : 16, ratio > 0.9 ? 63 : 185, ratio > 0.9 ? 94 : 129);
+      doc.rect(70, 111, fillWidth, 6, 'F');
+      
+      doc.setTextColor(ratio > 0.9 ? 244 : 100);
+      doc.text(`${(ratio * 100).toFixed(0)}%`, 70 + barWidth + 5, 116);
+
+      // 2. Top Categories Bar Chart
+      doc.setTextColor(50);
+      doc.text('Maiores Gastos por Categoria:', 15, 130);
+      
+      const catsData = filteredTransactions
+        .filter(t => t.type === 'expense' || t.type === 'installment')
+        .reduce((acc, t) => {
+          acc[t.category] = (acc[t.category] || 0) + t.amount;
+          return acc;
+        }, {} as Record<string, number>);
+        
+      const sortedCats = Object.entries(catsData)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      const maxVal = sortedCats[0]?.[1] || 1;
+      sortedCats.forEach((cat, index) => {
+        const y = 140 + (index * 10);
+        const name = cat[0];
+        const val = cat[1];
+        const cw = (val / maxVal) * 100;
+        
+        doc.setTextColor(100);
+        doc.text(name.substring(0, 15), 15, y + 4);
+        
+        doc.setFillColor(245, 245, 250);
+        doc.rect(50, y, 100, 5, 'F');
+        
+        doc.setFillColor(79, 70, 229); // indigo-600
+        doc.rect(50, y, cw, 5, 'F');
+        
+        doc.setFontSize(7);
+        doc.text(val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 155, y + 4);
+        doc.setFontSize(9);
+      });
+
+      // -- TRANSACTIONS TABLE --
+      const tableRows = filteredTransactions.map(tx => [
+        tx.date.toLocaleDateString('pt-BR'),
+        tx.description,
+        tx.category,
+        tx.type === 'income' ? 'Receita' : tx.type === 'expense' ? 'Despesa' : tx.type === 'installment' ? 'Parcelado' : 'Recorrente',
+        { 
+          content: tx.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          styles: { textColor: (tx.type === 'income' || tx.type === 'recurring') ? [16, 185, 129] as [number, number, number] : [30, 30, 30] as [number, number, number], fontStyle: 'bold' as const }
+        }
+      ]);
+
+      autoTable(doc, {
+        startY: sortedCats.length > 0 ? 140 + (sortedCats.length * 10) + 10 : 120,
+        head: [['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor']],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [15, 23, 42], // slate-900 
+          textColor: 255, 
+          fontStyle: 'bold', 
+          halign: 'center',
+          cellPadding: 4
+        },
+        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
+        columnStyles: {
+          0: { cellWidth: 22, halign: 'center' },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 30, halign: 'center' },
+          3: { cellWidth: 25, halign: 'center' },
+          4: { cellWidth: 35, halign: 'right' }
+        },
+        margin: { left: 15, right: 15 },
+        alternateRowStyles: { fillColor: [250, 250, 250] }
+      });
+
+      // Signature/Footer on all pages
+      const totalPages = doc.internal.pages.length - 1;
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${totalPages} • Minha Aurora App`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      }
+
+      const filename = `Aurora_Report_${yearFilter}${monthFilter !== 'all' ? '_' + monthFilter : ''}.pdf`;
+      doc.save(filename);
+      toast.success('Relatório Financeiro gerado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao exportar PDF:', err);
+      toast.error('Erro ao gerar PDF: ' + err.message);
+    }
+  };
+
   return (
     <div ref={containerRef} className="space-y-10 pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 font-outfit">
       {/* Header */}
@@ -135,7 +317,11 @@ export const TransactionsPage: React.FC = () => {
           <p className="text-muted-foreground font-medium text-xs md:text-base">Controle granular de todas as movimentações financeiras.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <Button variant="outline" className="h-11 px-5 border-white/10 glass hover:bg-white/5 font-bold rounded-xl gap-2 w-full sm:w-auto justify-center">
+          <Button 
+            variant="outline" 
+            className="h-11 px-5 border-white/10 glass hover:bg-white/5 font-bold rounded-xl gap-2 w-full sm:w-auto justify-center"
+            onClick={handleExportPDF}
+          >
             <Download size={18} /> Exportar
           </Button>
         </div>
